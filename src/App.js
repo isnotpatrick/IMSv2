@@ -1,23 +1,28 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import ItemsList from './ItemsList';
+import AddItemForm from './AddItemForm';
 
 function App() {
+  const [items, setItems] = useState([]);
+
+  const fetchItems = async () => {
+    const { data, error } = await supabase
+      .from('items')
+      .select('*');
+    if (error) console.error("error", error);
+    else setItems(data);
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <h1>My Items</h1>
+      <AddItemForm onNewItem={fetchItems} />
+      <ItemsList items={items} onItemsChange={fetchItems} />
     </div>
   );
 }

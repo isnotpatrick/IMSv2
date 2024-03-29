@@ -1,70 +1,216 @@
-# Getting Started with Create React App
+# Inventory Management System v2
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+<sub>*last updated: 2024-03-26*</sub>
+<br>
+<sub>*comments: React.js with Supabase*</sub>
 
-## Available Scripts
+This example is a React.js application that performs read, create, and delete operations against a Supabase database. Let's dive into these steps one by one.
 
-In the project directory, you can run:
+## Step 1: Setting Up Supabase
 
-### `npm start`
+### 1. Create a Supabase Account and Project:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Go to Supabase and sign up or log in.
+- Once logged in, click on "New Project".
+- Provide a name for your project, choose the nearest region to your users for the best performance, and set a secure password.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 2. Create a Table:
 
-### `npm test`
+- After your project is created, go to the "Table Editor" from the left sidebar in the Supabase dashboard.
+- Click on "New Table" and create **Items** table for your app.
+- Add columns according to the data you want to store.
+    - id *int*
+    - name *varchar* 
+    - description *text*
+    - quantity *int*
+- Set the id column as the primary key and enable auto-increment
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 3. Get Supabase Keys:
 
-### `npm run build`
+- Go to the **Project Settings > API** section in your project dashboard.
+- Here, you'll find your *Project URL* and *anon/public keys*. You'll need these to connect your React app to Supabase.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Step 2: Setting Up React Application
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 1. Create a React App:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npx create-react-app inventory-management
+cd inventory-management
+```
 
-### `npm run eject`
+### 2. Install Supabase Client:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+npm install @supabase/supabase-js
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 3. Configure Supabase:
+- Create a file named *.env.local* in your project's root directory.
+- Add your Supabase URL and keys like this:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```
+REACT_APP_SUPABASE_URL='Your_Supabase_Project_URL'
+REACT_APP_SUPABASE_ANON_KEY='Your_Supabase_Anon_Key'
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 4. Initialize Supabase Client:
 
-## Learn More
+- Create a file *supabaseClient.js* in the **src** folder.
+- Initialize Supabase client like this:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```javascript
+import { createClient } from '@supabase/supabase-js'
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY
 
-### Code Splitting
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 5. Modify App component (/src/App.js):
+- This is your main component where we'll use state hooks to store our items and display other components.
+- We'll fetch items from Supabase when the component mounts using the 'useEffect' hook.
 
-### Analyzing the Bundle Size
+```jsx
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import ItemsList from './ItemsList';
+import AddItemForm from './AddItemForm';
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+function App() {
+  const [items, setItems] = useState([]);
 
-### Making a Progressive Web App
+  const fetchItems = async () => {
+    const { data, error } = await supabase
+      .from('items')
+      .select('*');
+    if (error) console.error("error", error);
+    else setItems(data);
+  };
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
-### Advanced Configuration
+  return (
+    <div>
+      <h1>My Items</h1>
+      <AddItemForm onNewItem={fetchItems} />
+      <ItemsList items={items} onItemsChange={fetchItems} />
+    </div>
+  );
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+export default App;
+```
 
-### Deployment
+### 6. Create AddItemForm Component (/src/AddItemForm.js):
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- A component to add new items.
+- It includes a form with inputs for the item's fields, and a button to submit the form.
+- The onNewItem function passed from App.js is called after adding an item to refresh the list.
 
-### `npm run build` fails to minify
+```jsx
+import React, { useState } from 'react';
+import { supabase } from './supabaseClient';
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+function AddItemForm({ onNewItem }) {
+  const [id, setId] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [quantity, setQuantity] = useState('');
+
+  const addItem = async (e) => {
+    e.preventDefault();
+    const { data, error } = await supabase
+      .from('items')
+      .insert([{ id, name, description, quantity }]);
+    if (error) console.error("error", error);
+    else {
+      setId('');
+      setName('');
+      setDescription('');
+      setQuantity('');
+      onNewItem(); // Refresh items list
+    }
+  };
+
+  return (
+    <form onSubmit={addItem}>
+      <input
+        type="int"
+        placeholder="Id"
+        value={id}
+        onChange={(e) => setId(e.target.value)}
+      />
+      <input
+        type="varchar"
+        placeholder="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+      <input
+        type="int"
+        placeholder="Quantity"
+        value={quantity}
+        onChange={(e) => setQuantity(e.target.value)}
+      />
+      <button type="submit">Add Item</button>
+    </form>
+  );
+}
+
+export default AddItemForm;
+```
+
+### 7. Create ItemsList Component (/src/ItemsList.js):
+
+- Displays a list of items.
+- Each item has buttons for updating and deleting it, using the corresponding functions.
+
+```jsx
+import React from 'react';
+import { supabase } from './supabaseClient';
+
+function ItemsList({ items, onItemsChange }) {
+  const deleteItem = async (id) => {
+    const { data, error } = await supabase
+      .from('items')
+      .delete()
+      .match({ id });
+    if (error) console.error("error", error);
+    else onItemsChange(); // Refresh items list
+  };
+
+  // Update functionality can be implemented similarly,
+  // by creating another component for editing an item and passing the update function.
+
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>
+          {item.id} - {item.name} - {item.description} - {item.quantity}
+          <button onClick={() => deleteItem(item.id)}>Delete</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default ItemsList;
+```
+
+### 8. Finalize and Run Your App
+
+- Ensure all components are correctly imported and used in your **App.js**.
+- Start your development server with 'npm start'.
+- You should now see your items fetched from Supabase displayed on the page, and you can add or delete items. To implement update functionality, you might create an *'EditItemForm'* component similar to *'AddItemForm'* but pre-filled with the item's current data and with a function to update the item in Supabase.
+
+This setup provides a basic read, create, delete application using React and Supabase. For a more sophisticated application, you may need to handle loading states, error messages, and form validations.
